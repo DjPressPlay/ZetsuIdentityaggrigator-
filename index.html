@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Z-Browser</title>
+  <style>
+    :root {
+      --bg-dark: #1a1a1a;
+      --bg-medium: #2a2a2a;
+      --text-light: #f0f0f0;
+      --border-color: #444;
+      --spacing-unit: 8px;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      background-color: var(--bg-medium);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden; /* Prevent body scroll, webview will handle its own */
+    }
+
+    /* Toolbar Styles */
+    #toolbar {
+      background: var(--bg-dark);
+      padding: var(--spacing-unit) calc(var(--spacing-unit) * 1.5);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-unit);
+      border-bottom: 1px solid var(--border-color);
+      flex-shrink: 0; /* Prevent toolbar from shrinking */
+    }
+
+    #toolbar button {
+      background: var(--bg-medium);
+      color: var(--text-light);
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1.1em;
+      line-height: 1;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+
+    #toolbar button:hover {
+      background-color: #3a3a3a;
+      border-color: #666;
+    }
+
+    #toolbar input[type="text"] {
+      flex: 1;
+      margin: 0 var(--spacing-unit);
+      padding: 7px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background-color: #333;
+      color: var(--text-light);
+      font-size: 1em;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+      outline: none;
+    }
+
+    #toolbar input[type="text"]:focus {
+        border-color: #007bff;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 0 2px rgba(0,123,255,0.25);
+    }
+
+    /* Site Info Popup Styling */
+    #site-info {
+      position: relative;
+    }
+
+    #site-button {
+      font-size: 1em !important; /* Override button font-size for icon */
+      padding: 6px 10px !important;
+    }
+
+    #site-popup {
+      position: absolute;
+      top: calc(100% + 5px); /* Position below the button */
+      left: 0;
+      background: var(--bg-dark);
+      border: 1px solid var(--border-color);
+      padding: var(--spacing-unit) calc(var(--spacing-unit) * 1.5);
+      border-radius: 6px;
+      min-width: 240px;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      display: none; /* Hidden by default */
+      flex-direction: column;
+      gap: var(--spacing-unit);
+    }
+
+    #site-popup p {
+      margin: 0 0 var(--spacing-unit) 0;
+      font-weight: bold;
+      color: #90ee90; /* Light green for secure status */
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: var(--spacing-unit);
+    }
+
+    #site-popup .permission-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-unit);
+      margin-bottom: 4px;
+    }
+
+    #site-popup label {
+      cursor: pointer;
+      flex-grow: 1;
+    }
+
+    #site-popup input[type="checkbox"] {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      background-color: #333;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    #site-popup input[type="checkbox"]:checked {
+      background-color: #007bff;
+      border-color: #007bff;
+    }
+
+    #site-popup input[type="checkbox"]:checked::before {
+      content: '✓';
+      color: white;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    #site-popup button#reset-permissions {
+      margin-top: var(--spacing-unit);
+      width: 100%;
+      background-color: #dc3545; /* Red for reset */
+      border-color: #dc3545;
+      color: white;
+    }
+
+    #site-popup button#reset-permissions:hover {
+      background-color: #c82333;
+      border-color: #bd2130;
+    }
+
+    /* Browser View */
+    #browser-view {
+      flex-grow: 1; /* Allow webview to take remaining space */
+      display: flex;
+    }
+
+    webview {
+      width: 100%;
+      height: 100%;
+      border: none; /* Webview itself shouldn't have a border */
+    }
+  </style>
+</head>
+<body>
+  <header id="toolbar">
+    <button id="back" aria-label="Go back">←</button>
+    <button id="forward" aria-label="Go forward">→</button>
+    <button id="reload" aria-label="Reload page">⟳</button>
+    <button id="home" aria-label="Go to homepage">🏠</button>
+
+    <div id="site-info">
+      <button id="site-button" aria-label="Site security and permissions">🔒</button>
+      <div id="site-popup">
+        <p id="ssl-status">Secure Connection</p>
+        <div class="permission-item">
+          <input type="checkbox" id="perm-mic">
+          <label for="perm-mic">Microphone</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="perm-cam">
+          <label for="perm-cam">Camera</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="perm-geo">
+          <label for="perm-geo">Location</label>
+        </div>
+        <div class="permission-item">
+          <input type="checkbox" id="perm-notify">
+          <label for="perm-notify">Notifications</label>
+        </div>
+        <button id="reset-permissions">Reset Permissions</button>
+      </div>
+    </div>
+
+    <input type="text" id="url" value="https://youtube.com" placeholder="Enter URL">
+    <button id="go" aria-label="Go to URL">Go</button>
+    <button id="zoomin" aria-label="Zoom in">+</button>
+    <button id="zoomout" aria-label="Zoom out">-</button>
+    <button id="favorite" aria-label="Add to favorites">★</button>
+  </header>
+
+  <main id="browser-view">
+    <webview id="view" src="https://youtube.com" allowpopups></webview>
+  </main>
+
+  <script src="index.js"></script>
+</body>
+</html>
